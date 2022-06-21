@@ -20,20 +20,24 @@ struct MemoryMapGuard<'i, 'a> {
 }
 
 use core::borrow::{Borrow, BorrowMut};
+use std::mem::MaybeUninit;
 
-impl<T> Borrow<[T]> for MemoryMapGuard<'_, '_> {
-    fn borrow(&self) -> &[T] {
+impl<T> Borrow<[MaybeUninit<T>]> for MemoryMapGuard<'_, '_> {
+    fn borrow(&self) -> &[MaybeUninit<T>] {
         unsafe {
-            core::slice::from_raw_parts(self.ptr as *const T, self.size / core::mem::size_of::<T>())
+            core::slice::from_raw_parts(
+                self.ptr as *const MaybeUninit<T>,
+                self.size / core::mem::size_of::<T>(),
+            )
         }
     }
 }
 
-impl<T> BorrowMut<[T]> for MemoryMapGuard<'_, '_> {
-    fn borrow_mut(&mut self) -> &mut [T] {
+impl<T> BorrowMut<[MaybeUninit<T>]> for MemoryMapGuard<'_, '_> {
+    fn borrow_mut(&mut self) -> &mut [MaybeUninit<T>] {
         unsafe {
             core::slice::from_raw_parts_mut(
-                self.ptr as *mut T,
+                self.ptr as *mut MaybeUninit<T>,
                 self.size / core::mem::size_of::<T>(),
             )
         }
@@ -368,20 +372,20 @@ impl Renderer {
                 // Upload vertex/index data into a single contiguous GPU buffer
                 let mut vtx_guard = unsafe { rb.vertex_buffer.memory_map(instance) }?;
                 let mut idx_guard = unsafe { rb.index_buffer.memory_map(instance) }?;
-                let vtx_dst: &mut [imgui::DrawVert] = vtx_guard.borrow_mut();
-                let idx_dst: &mut [imgui::DrawIdx] = idx_guard.borrow_mut();
+                let mut vtx_dst: &mut [MaybeUninit<imgui::DrawVert>] = vtx_guard.borrow_mut();
+                let mut idx_dst: &mut [MaybeUninit<imgui::DrawIdx>] = idx_guard.borrow_mut();
 
-                let mut vertex_index = 0;
-                let mut index_index = 0;
                 for draw_list in draw_data.draw_lists() {
-                    let vtx_range = vertex_index..vertex_index + draw_list.vtx_buffer().len();
-                    let idx_range = index_index..index_index + draw_list.idx_buffer().len();
-
-                    vtx_dst[vtx_range].copy_from_slice(draw_list.vtx_buffer());
-                    idx_dst[idx_range].copy_from_slice(draw_list.idx_buffer());
-
-                    vertex_index += draw_list.vtx_buffer().len();
-                    index_index += draw_list.idx_buffer().len();
+                    MaybeUninit::write_slice(
+                        &mut vtx_dst[..draw_list.vtx_buffer().len()],
+                        draw_list.vtx_buffer(),
+                    );
+                    MaybeUninit::write_slice(
+                        &mut idx_dst[..draw_list.idx_buffer().len()],
+                        draw_list.idx_buffer(),
+                    );
+                    vtx_dst = &mut vtx_dst[draw_list.vtx_buffer().len()..];
+                    idx_dst = &mut idx_dst[draw_list.idx_buffer().len()..];
                 }
 
                 let memory_ranges = [
