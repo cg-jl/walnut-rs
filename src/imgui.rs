@@ -22,6 +22,7 @@ struct MemoryMapGuard<'i, 'a> {
 use core::borrow::{Borrow, BorrowMut};
 use std::mem::MaybeUninit;
 
+// NOTE: `T` must be POD.  Can't use bytemuck's Pod here because imgui-rs doesn't use bytemuck
 impl<T> Borrow<[MaybeUninit<T>]> for MemoryMapGuard<'_, '_> {
     fn borrow(&self) -> &[MaybeUninit<T>] {
         unsafe {
@@ -33,6 +34,7 @@ impl<T> Borrow<[MaybeUninit<T>]> for MemoryMapGuard<'_, '_> {
     }
 }
 
+// NOTE: `T` must be POD.  Can't use bytemuck's Pod here because imgui-rs doesn't use bytemuck
 impl<T> BorrowMut<[MaybeUninit<T>]> for MemoryMapGuard<'_, '_> {
     fn borrow_mut(&mut self) -> &mut [MaybeUninit<T>] {
         unsafe {

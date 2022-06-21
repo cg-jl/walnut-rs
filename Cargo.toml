@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 ash = "0.37.0"
+bytemuck = "1.9.1"
 glfw = "0.44.0"
 glm = "0.2.3"
 imgui = "0.8.2"
