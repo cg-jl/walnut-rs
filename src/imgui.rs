@@ -70,11 +70,12 @@ impl FrameRenderBuffer {
         &self,
         instance: &'i Instance<'a>,
     ) -> VkResult<MemoryMapGuard<'i, 'a>> {
-        let ptr =
+        // SAFE: premise
+        let ptr = unsafe {
             instance
                 .device
                 .map_memory(self.memory, 0, self.size, vk::MemoryMapFlags::empty())?
-                as *mut u8;
+        } as *mut u8;
         Ok(MemoryMapGuard {
             ptr,
             instance,
@@ -91,20 +92,23 @@ impl FrameRenderBuffer {
         target_size: vk::DeviceSize,
         usage: vk::BufferUsageFlags,
     ) -> VkResult<()> {
+        // SAFE: premise
         let AllocationInfo {
             buffer,
             buffer_memory,
             buffer_size,
             buffer_memory_alignment: _,
-        } = instance.create_or_resize_buffer(
-            AllocationInfo {
-                buffer: self.handle,
-                buffer_size: target_size,
-                buffer_memory: self.memory,
-                buffer_memory_alignment: 1,
-            },
-            usage,
-        )?;
+        } = unsafe {
+            instance.create_or_resize_buffer(
+                AllocationInfo {
+                    buffer: self.handle,
+                    buffer_size: target_size,
+                    buffer_memory: self.memory,
+                    buffer_memory_alignment: 1,
+                },
+                usage,
+            )?
+        };
 
         self.handle = buffer;
         self.size = buffer_size;
@@ -121,7 +125,10 @@ impl FrameRenderBuffer {
         usage: vk::BufferUsageFlags,
     ) -> VkResult<()> {
         if self.needs_reallocation(target_size) {
-            self.reallocate(instance, target_size, usage)?;
+            // SAFE: premise
+            unsafe {
+                self.reallocate(instance, target_size, usage)?;
+            }
         }
         Ok(())
     }
@@ -159,20 +166,29 @@ impl WindowRenderBuffers {
     //     };
     // }
 
+    // # Safety
+    // Frame render buffers must be allocated
     pub unsafe fn advance_index_unchecked(&mut self) {
         self.index = self.index.wrapping_add(1)
-            % self
-                .frame_render_buffers
-                .as_deref()
-                .unwrap_unchecked()
-                .len() as u32;
+            // SAFE: premise
+            % unsafe {
+                self.frame_render_buffers
+                    .as_deref()
+                    .unwrap_unchecked()
+                    .len() as u32
+            };
     }
 
+    // # Safety
+    // Frame render buffers must be allocated
     pub unsafe fn current_mut_unchecked(&mut self) -> &mut FrameRenderBuffers {
-        self.frame_render_buffers
-            .as_deref_mut()
-            .unwrap_unchecked()
-            .get_unchecked_mut(self.index as usize)
+        // SAFE: premise
+        unsafe {
+            self.frame_render_buffers
+                .as_deref_mut()
+                .unwrap_unchecked()
+                .get_unchecked_mut(self.index as usize)
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -746,7 +762,9 @@ impl Instance<'_> {
                 .allocate_memory(&memory_alloc_info, self.allocation_callbacks)
         }?;
 
-        self.device.bind_buffer_memory(buffer, buffer_memory, 0)?;
+        unsafe {
+            self.device.bind_buffer_memory(buffer, buffer_memory, 0)?;
+        }
 
         Ok(AllocationInfo {
             buffer,

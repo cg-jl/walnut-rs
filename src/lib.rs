@@ -1,3 +1,4 @@
+#![deny(unsafe_op_in_unsafe_fn)]
 #![feature(maybe_uninit_write_slice)]
 #![feature(new_uninit)]
 #![feature(alloc_layout_extra)]
