@@ -1,0 +1,15 @@
+[package]
+name = "walnut"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ash = "0.37.0"
+glfw = "0.44.0"
+glm = "0.2.3"
+imgui = "0.8.2"
+rand = "0.8.5"
+stb_image = "0.2.4"
+
